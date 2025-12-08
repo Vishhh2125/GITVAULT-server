@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+repos/
+Instructions.txt
+Instrutions.txt
+MongoOperations.txt
+# Environment variables
+.env
+.env.*
+
+# Logs and diagnostics
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+
+# Build output
+dist/
+build/
+.turbo/
+.cache/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.env

@@ -1,75 +1,78 @@
 import mongoose from "mongoose";
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-const userSchema = new mongoose.Schema({
-    username:{
-        type:String,
-        required:true,
-        unique:true,
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
+const collaboratorRepoSchema = new mongoose.Schema(
+  {
+    repoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Repository",
+      required: true,
     },
-    email:{
-        type:String,
-        required:true,  
-        unique:true,
+    repoName: {
+      type: String,
+      required: true,
     },
-    password:{
-        type:String,
-        required:true,
+    role: {
+      type: String,
+      enum: ["read", "write", "admin"],
+      default: "read",
     },
-    refreshToken:{
-        type:String,
-    }
-},
-{
-timestamps:true
-})
+  },
+  { _id: false }
+);
 
-
-
-userSchema.pre("save", async function(){
-    if(this.isModified("password")){
-        const saltRounds=10;
-        this.password = await bcrypt.hash(this.password,saltRounds);
-    }
-    
-})
-
-
-userSchema.methods.isPasswordCorrect = async function(password){
-    return await bcrypt.compare(password, this.password);
-}
-
-
-
-userSchema.methods.generateAccessToken = async function(){
-
-    const accessToken = await jwt.sign({
-        _id:this._id,
-        email:this.email,
-        username:this.username
-        },
-        process.env.ACCESS_TOKEN_SECRET,
-        {expiresIn: process.env.ACCESS_TOKEN_EXPIRY},
-    )
-
-    return accessToken;
-
-} 
-
-
-userSchema.methods.generateRefreshToken= async function (){
-
-    const refreshToken = await jwt.sign({
-        _id:this._id,
-    
+const userSchema = new mongoose.Schema(
+  {
+    username: {
+      type: String,
+      unique: true,
+      required: true,
+      trim: true,
     },
-  process.env.REFRESH_TOKEN_SECRET,
-{expiresIn:process.env.REFRESH_TOKEN_EXPIRY})
+    email: {
+      type: String,
+      unique: true,
+      required: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    collaboratorRepos: {
+      type: [collaboratorRepoSchema],
+      default: [],
+    },
+  },
+  { timestamps: true }
+);
 
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  const saltRounds = 10;
+  this.password = await bcrypt.hash(this.password, saltRounds);
+  
+});
 
-return refreshToken;
+userSchema.methods.isPasswordCorrect = async function (password) {
+  return bcrypt.compare(password, this.password);
+};
 
-}
+userSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    { _id: this._id, email: this.email, username: this.username },
+    process.env.ACCESS_TOKEN_SECRET,
+    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
+  );
+};
 
-const User = mongoose.model("User",userSchema);
+userSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    { _id: this._id },
+    process.env.REFRESH_TOKEN_SECRET,
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
+  );
+};
+
+const User = mongoose.model("User", userSchema);
 export default User;

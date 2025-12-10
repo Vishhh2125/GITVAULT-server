@@ -52,7 +52,7 @@ const loginUser= asyncHandler(async(req,res)=>{
 
     if(!existedUser) throw new ApiError(404,"User not found with this email");
 
-    const passwordMatch= await bcrypt.compare(password,existedUser.password);
+    const passwordMatch= await existedUser.isPasswordCorrect(password);
 
     if(!passwordMatch) throw new ApiError(401,"Invalid password");
 
@@ -63,27 +63,8 @@ const loginUser= asyncHandler(async(req,res)=>{
 
 
 
-    const accessToken = jwt.sign({
-
-        _id:existedUser._id,
-        email:existedUser.email,
-        username:existedUser.username
-
-    },
-    process.env.ACCESS_TOKEN_SECRET,
-    {expiresIn: process.env.ACCESS_TOKEN_EXPIRY}
-
-     )
-
-
-     const refreshToken= jwt.sign({
-        _id:existedUser._id,
-
-       },
-     process.env.REFRESH_TOKEN_SECRET,
-    {expiresIn:process.env.REFRESH_TOKEN_EXPIRY}
-     )
-
+        const accessToken = await existedUser.generateAccessToken();
+        const refreshToken = await existedUser.generateRefreshToken();
 
         const options = {
         httpOnly: true,
@@ -102,7 +83,7 @@ const loginUser= asyncHandler(async(req,res)=>{
                 new ApiResponse(
                     200, 
                     {
-                        user: safeUser, accessToken, 
+                        user: safeUser, accessToken 
                     },
                     "User logged In Successfully"
                 )

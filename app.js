@@ -17,14 +17,23 @@ app.use(cookieParser());
 
 
 
-
+//restApi routes 
 import repoRouter from "./routes/repo.route.js";
 import userRouter from "./routes/user.route.js";
+import patRouter from "./routes/pat.route.js";
+
 
 app.use("/api/v1/users",userRouter);
 
 app.use("/api/v1/repos",repoRouter);
 
+app.use("/api/v1/pat",patRouter);
+
+
+
+// git smart HTTP routes
+import gitRouter from "./routes/git/git.routes.js";
+app.use("/git",gitRouter);
 
 
 

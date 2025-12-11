@@ -1,7 +1,7 @@
 import express from 'express';
-import {getAllRepos,createRepo,getRepoByUser,getRepoInfo} from "../controllers/repoController.js";
+import {getAllRepos,createRepo,getRepoByUser,getRepoInfo} from "../controllers/repo.controller.js";
 import verifyJWT from '../middleware/authMiddleware.js';
-import { addCollaborator } from '../controllers/collaboratorController.js';
+import { addCollaborator } from '../controllers/collaborator.controller.js';
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.route("/:id").get(getRepoInfo)   //any s[pecific repo ae per its id
 
 //colloborator routes
 router.route("/:repoId/collaborators/add").post(addCollaborator);
+
 
 
 

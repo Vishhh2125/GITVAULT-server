@@ -12,7 +12,8 @@ const gitAuthorize = async (req, res, next) => {
     console.log("Authenticated userId:", userId);
 
     // 1️⃣ Find repo in DB
-    const repository = await Repo.findOne({ name: repoName }).populate("owner collaborators.user");
+    const repository = await Repo.findOne({ name: repoName })
+      .populate("owner collaborators.user");
 
     if (!repository) {
       console.log("❌ Repo not found in DB");
@@ -26,24 +27,33 @@ const gitAuthorize = async (req, res, next) => {
       return res.status(404).send("Repository not found on server");
     }
 
-    // 3️⃣ Compute user role
-    let role = null;
+    // 3️⃣ Compute user role + access (FIXED LOGIC)
+    let role = "read";        // default role
+    let hasAccess = false;    // 🔴 IMPORTANT FIX
 
-    // OWNER CHECK
-    if (repository.owner._id.toString() === userId.toString()) {
-      role = "admin";
-    } else {
-      // FIND collaborator match
-      const collab = repository.collaborators.find(
-        (c) => c.user && c.user._id.toString() === userId.toString()
-      );
+    // Only check owner/collaborator if user is authenticated
+    if (userId) {
+      // OWNER CHECK
+      if (repository.owner._id.toString() === userId.toString()) {
+        role = "admin";
+        hasAccess = true;
+      } else {
+        // FIND collaborator match
+        const collab = repository.collaborators.find(
+          (c) => c.user && c.user._id.toString() === userId.toString()
+        );
 
-      if (collab) {
-        role = collab.role; // "read", "write", "admin"
+        if (collab) {
+          role = collab.role;   // "read", "write", "admin"
+          hasAccess = true;
+        }
       }
     }
 
-    const isPublic = repository.visibility === "public";
+    // PUBLIC repo → everyone has read access
+    if (repository.visibility === "public") {
+      hasAccess = true;
+    }
 
     // 4️⃣ Detect Git operation
     const isPush = req.originalUrl.includes("git-receive-pack");
@@ -51,12 +61,12 @@ const gitAuthorize = async (req, res, next) => {
     const isInfoRefs = req.originalUrl.includes("info/refs");
 
     console.log(`🧪 Operation → push:${isPush} fetch:${isFetch} info:${isInfoRefs}`);
-    console.log("🎭 User role:", role);
+    console.log("🎭 User role:", role, "| hasAccess:", hasAccess);
 
-    // 5️⃣ Apply repository access rules
+    // 5️⃣ Apply repository access rules (FIXED)
 
-    // ❗ PRIVATE repo → must have role
-    if (!isPublic && !role) {
+    // ❗ PRIVATE repo → must have access
+    if (repository.visibility === "private" && !hasAccess) {
       return res.status(403).send("Private repository. Access denied.");
     }
 
@@ -65,14 +75,6 @@ const gitAuthorize = async (req, res, next) => {
       if (role !== "write" && role !== "admin") {
         return res.status(403).send("You do not have permission to push.");
       }
-    }
-
-    // ✔ FETCH/CLONE/INFO allowed for:
-    // - public repos
-    // - any collaborator role
-    // - owner (admin)
-    if ((isFetch || isInfoRefs) && !isPublic && !role) {
-      return res.status(403).send("You do not have permission to read this repo.");
     }
 
     // Attach for next middleware/controller

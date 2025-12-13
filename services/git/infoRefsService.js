@@ -4,37 +4,15 @@ import path from "path";
 import { spawn } from "child_process";
 import Repo from "../../models/repo.model.js";
 
-export const infoRefsService = async (repoPath, service,req, res) => {
+export const infoRefsService = async (repoPath, service, req, res) => {
   try {
     console.log("1️⃣ Starting infoRefsService");
-    
-    // Extract repo name from path
-    const pathParts = repoPath.split("/");
-    const repoName = pathParts[pathParts.length - 1].replace(".git", "");
-    const username = pathParts[pathParts.length - 2];
+    console.log(`2️⃣ Serving refs for: ${repoPath}`);
 
-    console.log(`2️⃣ Parsed: username=${username}, repo=${repoName}`);
-
-    // Check if repo exists in database
-    const repoExists = await Repo.findOne({
-      name: repoName,
-    });
-
-    if (!repoExists) {
-      console.log(`❌ Repo not found`);
-      return res.status(404).send(`Repository ${username}/${repoName} not found`);
-    }
-
-    // Check if repo directory exists on filesystem
-    const fullRepoPath = path.resolve(repoPath);
-    console.log(`3️⃣ Checking filesystem: ${fullRepoPath}`);
-    
-    if (!fs.existsSync(fullRepoPath)) {
-      console.log(`❌ Directory not found`);
-      return res.status(404).send("Repository not found on server");
-    }
-
-    console.log(`4️⃣ Repo found, serving refs using child_process`);
+    // All validation done by gitAuthorize middleware!
+    // req.repository ✅ exists in DB
+    // req.repoPath ✅ exists on disk
+    // req.role ✅ user has access
 
     res.setHeader("Content-Type", `application/x-${service}-advertisement`);
     res.setHeader("Cache-Control", "no-cache");
@@ -46,7 +24,7 @@ export const infoRefsService = async (repoPath, service,req, res) => {
     res.write("0000");
 
     // Use git-upload-pack --advertise-refs to list refs
-    const gitProcess = spawn("git", ["upload-pack", "--advertise-refs", fullRepoPath]);
+    const gitProcess = spawn("git", ["upload-pack", "--advertise-refs", repoPath]);
 
     gitProcess.stdout.on("data", (data) => {
       res.write(data);
@@ -57,7 +35,7 @@ export const infoRefsService = async (repoPath, service,req, res) => {
     });
 
     gitProcess.on("close", (code) => {
-      console.log(`5️⃣ Git process exited with code ${code}`);
+      console.log(`3️⃣ Git process exited with code ${code}`);
       res.end();
     });
 

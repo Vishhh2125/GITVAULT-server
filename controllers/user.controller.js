@@ -56,7 +56,7 @@ const loginUser= asyncHandler(async(req,res)=>{
 
     if(!passwordMatch) throw new ApiError(401,"Invalid password");
 
- const { password: removedPassword, ...safeUser } = existedUser.toObject();
+ const { password: removedPassword, collaboratorRepos,...safeUser } = existedUser.toObject();
 
     
 
@@ -71,6 +71,9 @@ const loginUser= asyncHandler(async(req,res)=>{
         secure: false, // Set to true if using HTTPS
 
         }
+
+
+
 
 
 

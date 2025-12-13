@@ -1,5 +1,6 @@
 import { Router } from "express";
 import gitAuth from "../../middleware/gitAuth.js";
+import gitAuthorize from "../../middleware/gitAuthorize.js";
 import {
   handleInfoRefs,
   handleUploadPack,
@@ -9,16 +10,18 @@ import {
 const router = Router();
 
 // Git Smart HTTP routes
+// gitAuth → validates PAT token
+// gitAuthorize → checks repo permissions
 router
   .route("/:username/:repo.git/info/refs")
-  .get(gitAuth, handleInfoRefs);
+  .get(gitAuth, gitAuthorize, handleInfoRefs);
 
 router
   .route("/:username/:repo.git/git-upload-pack")
-  .post(gitAuth, handleUploadPack);
+  .post(gitAuth, gitAuthorize, handleUploadPack);
 
 router
   .route("/:username/:repo.git/git-receive-pack")
-  .post(gitAuth, handleReceivePack);
+  .post(gitAuth, gitAuthorize, handleReceivePack);
 
 export default router;

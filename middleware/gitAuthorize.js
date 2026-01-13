@@ -34,13 +34,13 @@ const gitAuthorize = async (req, res, next) => {
     // Only check owner/collaborator if user is authenticated
     if (userId) {
       // OWNER CHECK
-      if (repository.owner._id.toString() === userId.toString()) {
+      if (repository.owner._id.toString() === userId._id.toString()) {
         role = "admin";
         hasAccess = true;
       } else {
         // FIND collaborator match
         const collab = repository.collaborators.find(
-          (c) => c.user && c.user._id.toString() === userId.toString()
+          (c) => c.user && c.user._id.toString() === userId._id.toString()
         );
 
         if (collab) {

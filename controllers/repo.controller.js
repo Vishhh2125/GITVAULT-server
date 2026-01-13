@@ -69,13 +69,48 @@ const createRepo = asyncHandler(async (req, res) => {
 
 
 const getRepoByUser= asyncHandler(async(req,res)=>{
-    
+    const userId = req.user._id;
 
-    const repos = await Repository.find({owner:req.user._id});
+    // Find repos where user is the owner
+    const ownedRepos = await Repository.find({ owner: userId })
+        .populate("owner", "username email")
+        .populate("collaborators.user", "username email");
 
-    if(repos.length ===0) return res.status(200).json(new ApiResponse(200,[],"No repositories found for this user"));
+    // Find repos where user is a collaborator - use $elemMatch for precise matching
+    const collaboratorRepos = await Repository.find({
+        collaborators: {
+            $elemMatch: {
+                user: userId
+            }
+        }
+    })
+    .populate("owner", "username email")
+    .populate("collaborators.user", "username email");
 
-    return res.status(200).json(new ApiResponse(200,repos,"Repositories fetched successfully for the user"));
+    // Filter collaborator repos to ensure user is actually in the array (double-check)
+    const validCollaboratorRepos = collaboratorRepos.filter(repo => {
+        // Make sure user is not the owner (to avoid duplicates)
+        const ownerId = repo.owner._id ? repo.owner._id.toString() : repo.owner.toString();
+        if (ownerId === userId.toString()) {
+            return false; // Skip if user is owner (already in ownedRepos)
+        }
+        
+        // Verify user is actually a collaborator
+        return repo.collaborators && repo.collaborators.some(collab => {
+            if (!collab || !collab.user) return false;
+            const collabUserId = collab.user._id ? collab.user._id.toString() : collab.user.toString();
+            return collabUserId === userId.toString();
+        });
+    });
+
+    // Combine both arrays
+    const allRepos = [...ownedRepos, ...validCollaboratorRepos];
+
+    if(allRepos.length === 0) {
+        return res.status(200).json(new ApiResponse(200, [], "No repositories found for this user"));
+    }
+
+    return res.status(200).json(new ApiResponse(200, allRepos, "Repositories fetched successfully for the user"));
 })
 
 const getAllRepos = asyncHandler(async(req, res) => {
@@ -92,8 +127,8 @@ const getRepoInfo = asyncHandler(async (req, res) => {
     if (!id) throw new ApiError(400, "Repository id is required");
 
     const repo = await Repository.findById(id)
-        .populate('owner', 'username')
-        .populate('collaborators.user', 'username');
+        .populate("owner", "username email")
+        .populate("collaborators.user", "username email");
 
     if (!repo) throw new ApiError(404, "Repository not found");
 
@@ -111,14 +146,81 @@ const getRepoInfo = asyncHandler(async (req, res) => {
         url: repo.url,
         description: repo.description,
         visibility: repo.visibility,
-        owner: repo.owner._id,
-        ownername: repo.owner.username,
+        owner: {
+            _id: repo.owner._id,
+            username: repo.owner.username,
+            email: repo.owner.email
+        },
         collaborators: collab,
         createdAt: repo.createdAt,
         updatedAt: repo.updatedAt
     };
 
     res.status(200).json(new ApiResponse(200, data, "Repository info fetched successfully"));
+});
+
+const updateRepo = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { description, visibility } = req.body;
+    const userId = req.user._id;
+
+    if (!id) throw new ApiError(400, "Repository id is required");
+
+    const repo = await Repository.findById(id);
+    if (!repo) throw new ApiError(404, "Repository not found");
+
+    // Check if user is owner
+    if (repo.owner.toString() !== userId.toString()) {
+        throw new ApiError(403, "Only repository owner can update settings");
+    }
+
+    // Update fields
+    if (description !== undefined) repo.description = description;
+    if (visibility !== undefined) {
+        if (!["public", "private"].includes(visibility)) {
+            throw new ApiError(400, "Visibility must be 'public' or 'private'");
+        }
+        repo.visibility = visibility;
+    }
+
+    await repo.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, repo, "Repository updated successfully")
+    );
+});
+
+const deleteRepo = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    if (!id) throw new ApiError(400, "Repository id is required");
+
+    const repo = await Repository.findById(id);
+    if (!repo) throw new ApiError(404, "Repository not found");
+
+    // Check if user is owner
+    if (repo.owner.toString() !== userId.toString()) {
+        throw new ApiError(403, "Only repository owner can delete repository");
+    }
+
+    // Delete repository folder
+    const repoPath = repo.url;
+    if (fs.existsSync(repoPath)) {
+        try {
+            fs.rmSync(repoPath, { recursive: true, force: true });
+        } catch (err) {
+            console.error("Error deleting repo folder:", err);
+            // Continue with DB deletion even if folder deletion fails
+        }
+    }
+
+    // Delete from database
+    await Repository.findByIdAndDelete(id);
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Repository deleted successfully")
+    );
 });
 
 
@@ -136,4 +238,4 @@ const getRepoInfo = asyncHandler(async (req, res) => {
 
 
 
-export { createRepo, getAllRepos, getRepoByUser,getRepoInfo };
+export { createRepo, getAllRepos, getRepoByUser, getRepoInfo, updateRepo, deleteRepo };

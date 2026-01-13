@@ -39,6 +39,43 @@ const registerUser= asyncHandler(async(req,res)=>{
 
 })
 
+const refreshAccessToken=asyncHandler(async(req,res)=>{
+     const refreshtoken= req.cookies?.refreshToken;
+
+     if(!refreshtoken) throw new ApiError(401,"Refresh token not found, please login again");
+    
+
+     try {
+
+        const dedecoded =jwt.verify(refreshtoken,process.env.REFRESH_TOKEN_SECRET);
+
+        const existedUser=await User.findById(dedecoded._id);
+
+        if(!existedUser) throw new ApiError(401,"User not found, invalid refresh token");
+
+        const accessToken= existedUser.generateAccessToken();
+        const newRefreshToken= existedUser.generateRefreshToken();
+
+        const options = {
+        httpOnly: true,
+        secure: false, // Set to true if using HTTPS
+
+        }
+
+
+        res.status(200)
+        .cookie("refreshToken", newRefreshToken, options)
+        .json(new ApiResponse(200, { accessToken }, "Access token refreshed successfully"));
+        
+     } catch (error) {
+
+        throw new ApiError(401,"Invalid or expired refresh token, please login again");
+        
+     }
+
+        
+})
+
 const loginUser= asyncHandler(async(req,res)=>{
 
     const {email,password}= req.body;
@@ -50,7 +87,7 @@ const loginUser= asyncHandler(async(req,res)=>{
 
     const existedUser= await User.findOne({email:email})
 
-    if(!existedUser) throw new ApiError(404,"User not found with this email");
+    if(!existedUser) throw new ApiError(401,"User not found with this email");
 
     const passwordMatch= await existedUser.isPasswordCorrect(password);
 
@@ -74,10 +111,6 @@ const loginUser= asyncHandler(async(req,res)=>{
 
 
 
-
-
-
-
            return res
             .status(200)
             
@@ -97,5 +130,31 @@ const loginUser= asyncHandler(async(req,res)=>{
 
 })
 
+const logoutUser= asyncHandler(async(req,res)=>{
 
-export {registerUser,loginUser};
+    res.clearCookie("refreshToken");    
+    return res.status(200).json(new ApiResponse(200,[],"User logged out successfully"));
+
+});
+
+const changePassword = asyncHandler(async(req,res)=>{
+    const {oldPassword, newPassword} = req.body;
+    const userId = req.user._id;
+
+    if(!oldPassword) throw new ApiError(400,"Current password is required");
+    if(!newPassword) throw new ApiError(400,"New password is required");
+    if(newPassword.length < 6) throw new ApiError(400,"New password must be at least 6 characters");
+
+    const user = await User.findById(userId);
+    if(!user) throw new ApiError(404,"User not found");
+
+    const passwordMatch = await user.isPasswordCorrect(oldPassword);
+    if(!passwordMatch) throw new ApiError(401,"Current password is incorrect");
+
+    user.password = newPassword;
+    await user.save({validateBeforeSave: false});
+
+    return res.status(200).json(new ApiResponse(200,{},"Password changed successfully"));
+});
+
+export {registerUser,loginUser,logoutUser,refreshAccessToken,changePassword};

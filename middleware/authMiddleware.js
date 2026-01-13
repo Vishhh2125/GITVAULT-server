@@ -1,42 +1,39 @@
 import jwt from 'jsonwebtoken';
-import { asyncHandler } from '../utils/asyncHandler.js';
 import User from '../models/user.model.js';
-import { ApiError } from "../utils/ApiError.js";
 
+const verifyJWT = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.split(' ')[1] : null;
 
-
-
-
-
-const verifyJWT= asyncHandler(async(req,res,next)=>{
-   try {
-
-    const authHeader = req.headers['authorization'];
-    const token = authHeader  ? authHeader.split(' ')[1] : null;
-
-    if(!token){
-        throw new ApiError(401,"Access token is missing");
+    if (!token) {
+      return res.status(401).json({
+        message: 'Access token is missing'
+      });
     }
 
+    const decodedToken = jwt.verify(
+      token,
+      process.env.ACCESS_TOKEN_SECRET
+    );
 
-    const decodedToken = jwt.verify(token ,process.env.ACCESS_TOKEN_SECRET);
+    const user = await User.findById(decodedToken._id);
 
-    const user = await  User.findById(decodedToken._id);
-
-    if(!user){
-        throw new ApiError(401,"Invalid token: user not found");
+    if (!user) {
+      return res.status(401).json({
+        message: 'Invalid token: user not found'
+      });
     }
 
-
-    req.user=user;  // so the we cretae new object in req as user so in controoller tehn dont ahve to find teh user and check everythime 
-
+    // Attach user to request for controllers
+    req.user = user;
     next();
-    
-   } catch (error) {
-    throw new ApiError(401,"Invalid or expired token"); 
-    
-   }
-    
-})
+
+  } catch (error) {
+    return res.status(401).json({
+      message: 'Invalid or expired token'
+    });
+  }
+};
 
 export default verifyJWT;

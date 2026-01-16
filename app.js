@@ -43,7 +43,7 @@ app.use("/api/v1/users",userRouter);
 app.use("/api/v1/repos",repoRouter);
 app.use("/api/v1/repos",repoFileRouter);
 app.use("/api/v1/pat",patRouter);
-app.use("/test", (req, res) => {
+app.get("/test", (req, res) => {
   res.send("API is working");
 });
 

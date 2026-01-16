@@ -2,6 +2,12 @@ import express from "express";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import cors from 'cors';
+
+// Validate REPO_BASE_PATH environment variable
+if (!process.env.REPO_BASE_PATH) {
+  throw new Error('REPO_BASE_PATH environment variable is required');
+}
+
 const app = express();
 
 app.use(cors({

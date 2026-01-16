@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import Repository from "../models/repo.model.js";
 import User from "../models/user.model.js";
 import fs from 'fs';
+import path from 'path';
 import { execSync } from "child_process";
 
 const createRepo = asyncHandler(async (req, res) => {
@@ -12,8 +13,8 @@ const createRepo = asyncHandler(async (req, res) => {
     if (!name) throw new ApiError(400, "Repository name is required");
 
     const username = req.user.username;
-    const basePath = `./repos/${username}`;
-    const repoPath = `${basePath}/${name}.git`;
+    const basePath = path.join(process.env.REPO_BASE_PATH, username);
+    const repoPath = path.join(basePath, `${name}.git`);
 
     // Step 1: Check DB uniqueness
     const exists = await Repository.findOne({ owner: req.user._id, name });
@@ -113,8 +114,10 @@ const getRepoByUser= asyncHandler(async(req,res)=>{
     return res.status(200).json(new ApiResponse(200, allRepos, "Repositories fetched successfully for the user"));
 })
 
-const getAllRepos = asyncHandler(async(req, res) => {
-    const repos = await Repository.find();
+const getAllPublicRepos = asyncHandler(async(req, res) => {
+    const repos = await Repository.find({ visibility: 'public' })
+        .populate("owner", "username email")
+        .populate("collaborators.user", "username email");
     if(repos.length === 0) return res.status(200).json(new ApiResponse(200, [], "No repositories found"));
 
     return res.status(200).json(new ApiResponse(200, repos, "Repositories fetched successfully"));
@@ -238,4 +241,4 @@ const deleteRepo = asyncHandler(async (req, res) => {
 
 
 
-export { createRepo, getAllRepos, getRepoByUser, getRepoInfo, updateRepo, deleteRepo };
+export { createRepo,  getRepoByUser, getRepoInfo, updateRepo, deleteRepo , getAllPublicRepos};

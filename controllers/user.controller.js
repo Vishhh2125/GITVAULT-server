@@ -12,6 +12,8 @@ import bcrypt from 'bcrypt';
 const registerUser= asyncHandler(async(req,res)=>{
 
     const {username,email,password} = req.body;
+    console.log(req.body);
+    
 
     if(!username) throw new ApiError(400,"Username is required");
     if(!email) throw new ApiError(400,"Email is required");
@@ -79,7 +81,7 @@ const refreshAccessToken=asyncHandler(async(req,res)=>{
 const loginUser= asyncHandler(async(req,res)=>{
 
     const {email,password}= req.body;
-
+     console.log(req.body);
 
     if(!email) throw new ApiError(400,"Email is required");
     if(!password) throw new ApiError(400,"password is required");
@@ -87,11 +89,11 @@ const loginUser= asyncHandler(async(req,res)=>{
 
     const existedUser= await User.findOne({email:email})
 
-    if(!existedUser) throw new ApiError(401,"User not found with this email");
+    if(!existedUser) throw new ApiError(400,"User not found with this email");
 
     const passwordMatch= await existedUser.isPasswordCorrect(password);
 
-    if(!passwordMatch) throw new ApiError(401,"Invalid password");
+    if(!passwordMatch) throw new ApiError(400,"Invalid password");
 
  const { password: removedPassword, collaboratorRepos,...safeUser } = existedUser.toObject();
 

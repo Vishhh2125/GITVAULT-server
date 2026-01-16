@@ -21,7 +21,7 @@ const gitAuthorize = async (req, res, next) => {
     }
 
     // 2️⃣ Validate repo folder exists
-    const repoPath = path.resolve(`./repos/${username}/${repoName}.git`);
+    const repoPath = path.join(process.env.REPO_BASE_PATH, username, `${repoName}.git`);
     if (!fs.existsSync(repoPath)) {
       console.log("❌ Repo folder missing");
       return res.status(404).send("Repository not found on server");

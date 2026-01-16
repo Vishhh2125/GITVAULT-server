@@ -62,8 +62,8 @@ const getRepoTree = asyncHandler(async (req, res) => {
   if (!repo.owner.username) {
     throw new ApiError(500, "Unable to determine repository owner username");
   }
-  const repoPath = path.resolve(
-    "./repos",
+  const repoPath = path.join(
+    process.env.REPO_BASE_PATH,
     repo.owner.username,
     `${repo.name}.git`
   );
@@ -187,7 +187,7 @@ const getFileContent = asyncHandler(async (req, res) => {
     if (!repo.owner.username) {
         throw new ApiError(500, "Unable to determine repository owner username");
     }
-    const repoPath = path.join(__dirname, '..', 'repos', repo.owner.username, `${repo.name}.git`);
+    const repoPath = path.join(process.env.REPO_BASE_PATH, repo.owner.username, `${repo.name}.git`);
 
     // Check if repository directory exists
     try {
